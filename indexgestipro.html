@@ -2,7 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="GestiPro"/>
+<meta name="theme-color" content="#5b21b6"/>
+<meta name="description" content="Gestion commerciale complète"/>
+<link rel="manifest" href="/Gestipro/manifest.json"/>
+<link rel="apple-touch-icon" href="/Gestipro/icon-192.png"/>
 <title>GestiPro</title>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -216,10 +224,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   #bottom-nav{display:flex}
   .stats-grid{grid-template-columns:1fr 1fr}
   #topbar .menu-btn{display:flex}
+  .content{padding-bottom:80px}
 }
 @media(min-width:701px){
   #topbar .menu-btn{display:none}
   #content{padding:20px 24px}
+  #bottom-nav{display:none!important}
 }
 @media(max-width:400px){
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -299,7 +309,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
       <button class="bnav-btn" onclick="nav('sales')" id="bnav-sales"><span class="bi">📈</span><span id="bl-sales">Ventes</span></button>
       <button class="bnav-btn" onclick="nav('purchases')" id="bnav-purchases"><span class="bi">📦</span><span id="bl-purchases">Achats</span></button>
       <button class="bnav-btn" onclick="nav('clients')" id="bnav-clients"><span class="bi">👥</span><span id="bl-clients">Clients</span></button>
-      <button class="bnav-btn" onclick="openDrawer()" id="bnav-more"><span class="bi">☰</span><span>Plus</span></button>
+      <button class="bnav-btn" onclick="openDrawer()"><span class="bi">☰</span><span>Plus</span></button>
     </div>
   </div>
 </div>
@@ -313,8 +323,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
   <div style="padding:8px">
+    <button class="nav-item" onclick="nav('dashboard');closeDrawer()"><span class="ni">🏠</span><span id="dnl-dashboard">Tableau de bord</span></button>
+    <button class="nav-item" onclick="nav('sales');closeDrawer()"><span class="ni">📈</span><span id="dnl-sales">Ventes</span></button>
+    <button class="nav-item" onclick="nav('purchases');closeDrawer()"><span class="ni">📦</span><span id="dnl-purchases">Achats</span></button>
     <button class="nav-item" onclick="nav('stock');closeDrawer()"><span class="ni">🏪</span><span id="dnl-stock">Stock</span></button>
     <button class="nav-item" onclick="nav('expenses');closeDrawer()"><span class="ni">💸</span><span id="dnl-expenses">Dépenses</span></button>
+    <button class="nav-item" onclick="nav('clients');closeDrawer()"><span class="ni">👥</span><span id="dnl-clients">Clients</span></button>
     <button class="nav-item" onclick="nav('suppliers');closeDrawer()"><span class="ni">🚚</span><span id="dnl-suppliers">Fournisseurs</span></button>
     <button class="nav-item" onclick="nav('payments');closeDrawer()"><span class="ni">💳</span><span id="dnl-payments">Règlements</span></button>
     <button class="nav-item" onclick="nav('reports');closeDrawer()"><span class="ni">📊</span><span id="dnl-reports">Rapports</span></button>
@@ -552,9 +566,9 @@ function defData(){return{
     {id:3,n:'Produit Gamma',catId:3,price:980,cost:600,unit:'pcs',stock:0,minStock:5,desc:'',barcode:''},
   ],
   clients:[
-    {id:1,n:'Client Dupont',catId:1,phone:'0612345678',addr:'Casablanca',bal:500,ord:0},
-    {id:2,n:'Société ACME',catId:2,phone:'0522000000',addr:'Rabat',bal:0,ord:1},
-    {id:3,n:'VIP Benali',catId:3,phone:'0661112233',addr:'Marrakech',bal:-200,ord:2},
+    {id:1,n:'Client Dupont',catId:1,phone:'0612345678',addr:'Casablanca',bal:500,ord:0,plafond:0},
+    {id:2,n:'Société ACME',catId:2,phone:'0522000000',addr:'Rabat',bal:0,ord:1,plafond:0},
+    {id:3,n:'VIP Benali',catId:3,phone:'0661112233',addr:'Marrakech',bal:-200,ord:2,plafond:0},
   ],
   suppliers:[
     {id:1,n:'Fournisseur Atlas',catId:1,phone:'0600111222',addr:'Fès',bal:1200},
@@ -563,11 +577,14 @@ function defData(){return{
   sales:[],purchases:[],expenses:[],payments:[],
   emailCfg:{serviceId:'',templateId:'',publicKey:'',destEmail:'',freq:'off',lastBackup:null},
   company:{name:'',phone:'',addr:''},
+  blockStockSale:false,
   nid:{p:4,c:4,s:3,sa:1,pu:1,ex:1,pa:1,pc:4,cc:4,sc:3}
 }}
 let D = (()=>{try{const r=localStorage.getItem(SKEY);return r?JSON.parse(r):defData()}catch{return defData()}})();
 if(!D.emailCfg) D.emailCfg={serviceId:'',templateId:'',publicKey:'',destEmail:'',freq:'off',lastBackup:null};
 if(!D.company) D.company={name:'',phone:'',addr:''};
+if(D.blockStockSale===undefined) D.blockStockSale=false;
+D.clients=D.clients.map(c=>({plafond:0,...c}));
 let lang = D.lang||'fr';
 let t = TL[lang];
 let curPage='dashboard';
@@ -696,12 +713,15 @@ function renderDashboard(){
   const tP=D.purchases.reduce((s,v)=>s+v.total,0);
   const tE=D.expenses.reduce((s,v)=>s+v.amt,0);
   const sVal=D.products.reduce((s,p)=>s+(p.stock*p.cost),0);
-  const profit=tS-tP-tE;
-  const lowStock=D.products.filter(p=>p.stock<=p.minStock&&p.stock>0);
+  const profit=D.sales.reduce((s,v)=>s+(v.items||[]).reduce((a,i)=>{const p=D.products.find(x=>x.id===i.pid||x.id===i.productId);return a+i.qty*(i.price-(p?p.cost:0));},0),0)-tE;
+  const lowStock=D.products.filter(p=>p.stock>0&&p.stock<=p.minStock);
   const outStock=D.products.filter(p=>p.stock===0);
+  const negStock=D.products.filter(p=>p.stock<0);
+  const totalCredits=D.clients.reduce((s,cl)=>s+(cl.bal>0?cl.bal:0),0);
   let alertHtml='';
-  if(outStock.length||lowStock.length){
-    alertHtml=`<div class="alert-box">⚠️ <strong>${t.stockAlert}:</strong>
+  if(outStock.length||lowStock.length||negStock.length){
+    alertHtml=`<div class="alert-box">⚠️ <strong>${t.stockAlert}:</strong><br>
+      ${negStock.map(p=>`<span class="badge badge-red" style="margin:2px">⚠️ ${esc(p.n)}: ${p.stock}</span>`).join('')}
       ${outStock.map(p=>`<span class="badge badge-red" style="margin:2px">${esc(p.n)} — ${t.outStock}</span>`).join('')}
       ${lowStock.map(p=>`<span class="badge badge-orange" style="margin:2px">${esc(p.n)}: ${p.stock} ${p.unit}</span>`).join('')}
     </div>`;
@@ -721,6 +741,8 @@ function renderDashboard(){
     <div class="stat-card" style="border-color:#db2777"><span class="sicon">👥</span><div><div class="sval" style="color:#db2777">${D.clients.length}</div><div class="slbl">${t.clients}</div></div></div>
     <div class="stat-card" style="border-color:#0891b2"><span class="sicon">🚚</span><div><div class="sval" style="color:#0891b2">${D.suppliers.length}</div><div class="slbl">${t.suppliers}</div></div></div>
     <div class="stat-card" style="border-color:#6366f1"><span class="sicon">📦</span><div><div class="sval" style="color:#6366f1">${D.products.length}</div><div class="slbl">${t.stock}</div></div></div>
+    <div class="stat-card" style="border-color:#dc2626;cursor:pointer" onclick="nav('reports');setTimeout(()=>{repTab='credits'},100)"><span class="sicon">💳</span><div><div class="sval color-red">${fmt(totalCredits)}</div><div class="slbl">Crédits clients</div></div></div>
+    <div class="stat-card" style="border-color:#7c3aed;cursor:pointer" onclick="nav('reports');setTimeout(()=>{repTab='clients'},100)"><span class="sicon">📊</span><div><div class="sval color-purple">${D.clients.filter(c=>c.bal>0).length}</div><div class="slbl">Clients débiteurs</div></div></div>
   </div>
   <div class="section-title">📈 ${t.sales} — ${t.today}</div>
   ${recent}
@@ -739,7 +761,10 @@ function renderSales(){
       <td class="color-green">${fmt(s.paid)}</td>
       <td class="${s.rem>0?'color-red':''}">${fmt(s.rem)}</td>
       <td><span class="badge ${s.rem<=0?'badge-green':s.paid>0?'badge-orange':'badge-red'}">${s.rem<=0?t.active:s.paid>0?'Partiel':'Impayé'}</span></td>
-      <td><button class="icon-btn" onclick="generateSaleInvoice(${s.id})" title="${t.downloadPdf}">🧾</button></td>
+      <td>
+        <button class="icon-btn" onclick="editSale(${s.id})" title="Modifier">✏️</button>
+        <button class="icon-btn" onclick="generateSaleInvoice(${s.id})" title="${t.downloadPdf}">🧾</button>
+      </td>
     </tr>`).join('')||`<tr class="no-data-row"><td colspan="8">${t.noData}</td></tr>`;
   return `<div class="page">
   <div class="page-hdr"><h2>${t.sales} <span>${D.sales.length} op.</span></h2>
@@ -763,13 +788,20 @@ function openSaleModal(){
     <div class="items-area">
       <div class="items-add-row">
         <select class="inp" id="s-prod" onchange="this.dataset.price=this.options[this.selectedIndex].dataset.price" style="flex:2">${prods}</select>
-        <input class="inp" type="number" id="s-qty" value="1" min="1" style="flex:0 0 60px"/>
+        <input class="inp" type="number" id="s-qty" placeholder="Qté" min="1" style="flex:0 0 60px"/>
         <input class="inp" type="number" id="s-price" placeholder="${t.price}" style="flex:1"/>
         <button class="btn btn-sm" onclick="openScannerForSale()" title="${t.scanProduct}">📷</button>
         <button class="btn btn-success btn-sm" onclick="addSaleItem()">+</button>
       </div>
       <div id="sale-items-list"></div>
       <div class="items-total-row" id="sale-total-row">${t.total}: 0.00</div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>TVA %</label><input class="inp" type="number" id="s-tva" value="0" min="0" max="100" oninput="updateSaleTVA()"/></div>
+      <div class="fld"><label>💵 Comptant</label><input class="inp" type="number" id="s-comptant" value="0" min="0"/></div>
+    </div>
+    <div id="s-tva-row" style="background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;display:none">
+      <span>HT: <strong id="s-ht">0</strong> | TVA: <strong id="s-tva-amt">0</strong> | TTC: <strong id="s-ttc">0</strong></span>
     </div>
     <div class="fld"><label>${t.notes}</label><input class="inp" id="s-notes"/></div>
     <div class="form-actions">
@@ -785,7 +817,7 @@ function addSaleItem(){
   const qty=Number(document.getElementById('s-qty').value)||1;
   const price=Number(document.getElementById('s-price').value)||prod.price;
   saleItems.push({pid,n:prod.n,qty,price,total:qty*price});
-  document.getElementById('s-qty').value=1;
+  document.getElementById('s-qty').value='';
   document.getElementById('s-price').value='';
   refreshSaleItems();
 }
@@ -804,18 +836,38 @@ function proceedSalePayment(){
   const cid=Number(document.getElementById('s-client').value);
   if(!cid){alert(t.client+' requis');return}
   if(!saleItems.length){alert(t.items+' requis');return}
-  const total=saleItems.reduce((s,i)=>s+i.total,0);
-  showPayModal(total,(info)=>saveSale(info));
+  // Check stock
+  if(D.blockStockSale){
+    for(const item of saleItems){
+      const prod=D.products.find(p=>p.id===item.pid);
+      if(prod&&prod.stock<item.qty){alert('⚠️ Stock insuffisant pour: '+prod.n+' (dispo: '+prod.stock+')');return;}
+    }
+  }
+  // Check plafond
+  const client=D.clients.find(c=>c.id===cid);
+  if(client&&client.plafond>0&&client.bal>=client.plafond){
+    alert('⚠️ Plafond crédit atteint pour '+client.n+' \nPlafond: '+fmt(client.plafond)+' | Solde actuel: '+fmt(client.bal));return;
+  }
+  const tva=Number(document.getElementById('s-tva')?.value)||0;
+  const comptant=Number(document.getElementById('s-comptant')?.value)||0;
+  const ht=saleItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const total=ht+tvaAmt;
+  showPayModal(total,(info)=>saveSale(info,{tva,tvaAmt,comptant,ht}));
 }
-function saveSale(info){
+function saveSale(info,extra){
   const cid=Number(document.getElementById('s-client').value);
   const client=D.clients.find(c=>c.id===cid);
   const date=document.getElementById('s-date').value;
   const notes=document.getElementById('s-notes').value;
-  const total=saleItems.reduce((s,i)=>s+i.total,0);
+  const ht=(extra&&extra.ht)||saleItems.reduce((s,i)=>s+i.total,0);
+  const tva=(extra&&extra.tva)||0;
+  const tvaAmt=(extra&&extra.tvaAmt)||0;
+  const comptant=(extra&&extra.comptant)||0;
+  const total=ht+tvaAmt;
   const id=D.nid.sa++;
-  D.sales.push({id,cId:cid,cName:client?.n||'',date,items:[...saleItems],total,paid:info.paid,advance:info.advance,bills:info.bills,coins:info.coins,rem:info.rem,notes});
-  D.products=D.products.map(p=>{const si=saleItems.find(i=>i.pid===p.id);return si?{...p,stock:Math.max(0,p.stock-si.qty)}:p});
+  D.sales.push({id,cId:cid,cName:client?.n||'',date,items:[...saleItems],ht,tva,tvaAmt,comptant,total,paid:info.paid,advance:info.advance,bills:info.bills,coins:info.coins,rem:info.rem,notes});
+  D.products=D.products.map(p=>{const si=saleItems.find(i=>i.pid===p.id);return si?{...p,stock:p.stock-si.qty}:p});
   D.clients=D.clients.map(c=>c.id===cid?{...c,bal:c.bal+info.rem}:c);
   save();closePayModal();closeModal();nav('sales');
   setTimeout(()=>{if(confirm(t.generateInvoice+' #'+id+' ?'))generateSaleInvoice(id)},300);
@@ -832,7 +884,10 @@ function renderPurchases(){
       <td class="fw700 color-purple">${fmt(p.total)}</td>
       <td class="color-green">${fmt(p.paid)}</td>
       <td class="${p.rem>0?'color-red':''}">${fmt(p.rem)}</td>
-      <td><button class="icon-btn" onclick="generatePurchInvoice(${p.id})" title="${t.downloadPdf}">🧾</button></td>
+      <td>
+        <button class="icon-btn" onclick="editPurch(${p.id})" title="Modifier">✏️</button>
+        <button class="icon-btn" onclick="generatePurchInvoice(${p.id})" title="${t.downloadPdf}">🧾</button>
+      </td>
     </tr>`).join('')||`<tr class="no-data-row"><td colspan="7">${t.noData}</td></tr>`;
   return `<div class="page">
   <div class="page-hdr"><h2>${t.purchases} <span>${D.purchases.length} op.</span></h2>
@@ -853,13 +908,20 @@ function openPurchModal(){
     <div class="items-area">
       <div class="items-add-row">
         <select class="inp" id="p-prod" style="flex:2">${prods}</select>
-        <input class="inp" type="number" id="p-qty" value="1" min="1" style="flex:0 0 60px"/>
+        <input class="inp" type="number" id="p-qty" placeholder="Qté" min="1" style="flex:0 0 60px"/>
         <input class="inp" type="number" id="p-cost" placeholder="${t.cost}" style="flex:1"/>
         <button class="btn btn-sm" onclick="openScannerForPurch()" title="${t.scanProduct}">📷</button>
         <button class="btn btn-success btn-sm" onclick="addPurchItem()">+</button>
       </div>
       <div id="purch-items-list"></div>
       <div class="items-total-row" id="purch-total-row">${t.total}: 0.00</div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>TVA %</label><input class="inp" type="number" id="p-tva" value="0" min="0" max="100" oninput="updatePurchTVA()"/></div>
+      <div class="fld"><label>💵 Comptant</label><input class="inp" type="number" id="p-comptant" value="0" min="0"/></div>
+    </div>
+    <div id="p-tva-row" style="background:#eff6ff;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;display:none">
+      <span>HT: <strong id="p-ht">0</strong> | TVA: <strong id="p-tva-amt">0</strong> | TTC: <strong id="p-ttc">0</strong></span>
     </div>
     <div class="fld"><label>${t.notes}</label><input class="inp" id="p-notes"/></div>
     <div class="form-actions">
@@ -875,7 +937,7 @@ function addPurchItem(){
   const qty=Number(document.getElementById('p-qty').value)||1;
   const cost=Number(document.getElementById('p-cost').value)||prod.cost;
   purchItems.push({pid,n:prod.n,qty,cost,total:qty*cost});
-  document.getElementById('p-qty').value=1;
+  document.getElementById('p-qty').value='';
   document.getElementById('p-cost').value='';
   refreshPurchItems();
 }
@@ -902,13 +964,218 @@ function savePurch(info){
   const sup=D.suppliers.find(s=>s.id===sid);
   const date=document.getElementById('p-date').value;
   const notes=document.getElementById('p-notes').value;
-  const total=purchItems.reduce((s,i)=>s+i.total,0);
+  const tva=Number(document.getElementById('p-tva')?.value)||0;
+  const comptant=Number(document.getElementById('p-comptant')?.value)||0;
+  const ht=purchItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const total=ht+tvaAmt;
   const id=D.nid.pu++;
-  D.purchases.push({id,sId:sid,sName:sup?.n||'',date,items:[...purchItems],total,paid:info.paid,advance:info.advance,bills:info.bills,coins:info.coins,rem:info.rem,notes});
+  D.purchases.push({id,sId:sid,sName:sup?.n||'',date,items:[...purchItems],ht,tva,tvaAmt,comptant,total,paid:info.paid,advance:info.advance,bills:info.bills,coins:info.coins,rem:info.rem,notes});
   D.products=D.products.map(p=>{const si=purchItems.find(i=>i.pid===p.id);return si?{...p,stock:p.stock+si.qty,cost:si.cost}:p});
   D.suppliers=D.suppliers.map(s=>s.id===sid?{...s,bal:s.bal+info.rem}:s);
   save();closePayModal();closeModal();nav('purchases');
   setTimeout(()=>{if(confirm(t.generateInvoice+' #'+id+' ?'))generatePurchInvoice(id)},300);
+}
+
+// ============ TVA HELPERS ============
+function updateSaleTVA(){
+  const tva=Number(document.getElementById('s-tva')?.value)||0;
+  const ht=saleItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const ttc=ht+tvaAmt;
+  const row=document.getElementById('s-tva-row');
+  if(row){row.style.display=tva>0?'block':'none';}
+  const htEl=document.getElementById('s-ht');if(htEl)htEl.textContent=fmt(ht);
+  const tvaEl=document.getElementById('s-tva-amt');if(tvaEl)tvaEl.textContent=fmt(tvaAmt);
+  const ttcEl=document.getElementById('s-ttc');if(ttcEl)ttcEl.textContent=fmt(ttc);
+}
+function updatePurchTVA(){
+  const tva=Number(document.getElementById('p-tva')?.value)||0;
+  const ht=purchItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const ttc=ht+tvaAmt;
+  const row=document.getElementById('p-tva-row');
+  if(row){row.style.display=tva>0?'block':'none';}
+  const htEl=document.getElementById('p-ht');if(htEl)htEl.textContent=fmt(ht);
+  const tvaEl=document.getElementById('p-tva-amt');if(tvaEl)tvaEl.textContent=fmt(tvaAmt);
+  const ttcEl=document.getElementById('p-ttc');if(ttcEl)ttcEl.textContent=fmt(ttc);
+}
+
+// ============ EDIT SALE/PURCHASE ============
+let editSaleItems=[];
+function editSale(id){
+  const s=D.sales.find(x=>x.id===id);if(!s)return;
+  editSaleItems=JSON.parse(JSON.stringify(s.items||[]));
+  const clients=D.clients.map(cl=>`<option value="${cl.id}" ${cl.id===s.cId?'selected':''}>${esc(cl.n)}</option>`).join('');
+  const prods=D.products.map(p=>`<option value="${p.id}">${esc(p.n)} (${p.stock})</option>`).join('');
+  openModal('✏️ Modifier Vente #'+id,`
+    <div class="form-row">
+      <div class="fld"><label>Client</label><select class="inp" id="es-client">${clients}</select></div>
+      <div class="fld"><label>Date</label><input class="inp" type="date" id="es-date" value="${s.date}"/></div>
+    </div>
+    <div class="section-title">🛒 Articles</div>
+    <div class="items-area">
+      <div class="items-add-row">
+        <select class="inp" id="es-prod" style="flex:2">${prods}</select>
+        <input class="inp" type="number" id="es-qty" placeholder="Qté" min="1" style="flex:0 0 60px"/>
+        <input class="inp" type="number" id="es-price" placeholder="Prix" style="flex:1"/>
+        <button class="btn btn-success btn-sm" onclick="addEditSaleItem()">+</button>
+      </div>
+      <div id="edit-sale-items"></div>
+      <div class="items-total-row" id="edit-sale-total"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>TVA %</label><input class="inp" type="number" id="es-tva" value="${s.tva||0}" oninput="refreshEditSaleItems()"/></div>
+      <div class="fld"><label>💵 Comptant</label><input class="inp" type="number" id="es-comptant" value="${s.comptant||0}"/></div>
+    </div>
+    <div class="section-title">💳 Paiement actuel</div>
+    <div class="pay-summary" style="margin-bottom:12px">
+      <div class="pay-summary-row"><span>Payé</span><span class="color-green">${fmt(s.paid)}</span></div>
+      <div class="pay-summary-row"><span>Avance</span><span>${fmt(s.advance||0)}</span></div>
+      <div class="pay-summary-row"><span>Billets</span><span>${fmt(s.bills||0)}</span></div>
+      <div class="pay-summary-row"><span>Pièces</span><span>${fmt(s.coins||0)}</span></div>
+      <div class="pay-summary-row total"><span>Reste actuel</span><span class="${s.rem>0?'color-red':'color-green'}">${fmt(s.rem)}</span></div>
+    </div>
+    <div class="fld"><label>➕ Nouveau paiement reçu</label><input class="inp" type="number" id="es-newpay" value="0"/></div>
+    <div class="fld"><label>Notes</label><input class="inp" id="es-notes" value="${s.notes||''}"/></div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEditSale(${id})">💾 Enregistrer</button>
+    </div>`,true);
+  refreshEditSaleItems();
+}
+function addEditSaleItem(){
+  const pid=Number(document.getElementById('es-prod').value);
+  const prod=D.products.find(p=>p.id===pid);if(!prod)return;
+  const qty=Number(document.getElementById('es-qty').value);if(!qty)return;
+  const price=Number(document.getElementById('es-price').value)||prod.price;
+  editSaleItems.push({pid,n:prod.n,qty,price,total:qty*price});
+  document.getElementById('es-qty').value='';
+  document.getElementById('es-price').value='';
+  refreshEditSaleItems();
+}
+function removeEditSaleItem(i){editSaleItems.splice(i,1);refreshEditSaleItems();}
+function refreshEditSaleItems(){
+  const tva=Number(document.getElementById('es-tva')?.value)||0;
+  const ht=editSaleItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const ttc=ht+tvaAmt;
+  const list=document.getElementById('edit-sale-items');
+  const tot=document.getElementById('edit-sale-total');
+  if(list)list.innerHTML=editSaleItems.map((item,i)=>`
+    <div class="item-row">
+      <div><div class="iname">${esc(item.n)}</div><div class="idetail">${item.qty} × ${fmt(item.price)}</div></div>
+      <span class="itotal">${fmt(item.total)}</span>
+      <button class="icon-btn del" onclick="removeEditSaleItem(${i})">✕</button>
+    </div>`).join('')||`<div style="text-align:center;color:var(--muted);padding:8px;font-size:13px">Aucun article</div>`;
+  if(tot)tot.innerHTML=`HT: <strong>${fmt(ht)}</strong> | TVA: <strong>${fmt(tvaAmt)}</strong> | <strong>TTC: ${fmt(ttc)}</strong>`;
+}
+function saveEditSale(id){
+  const s=D.sales.find(x=>x.id===id);if(!s)return;
+  const oldItems=s.items||[];
+  const newpay=Number(document.getElementById('es-newpay').value)||0;
+  const tva=Number(document.getElementById('es-tva').value)||0;
+  const ht=editSaleItems.reduce((x,i)=>x+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const total=ht+tvaAmt;
+  const newRem=Math.max(0,total-s.paid-newpay);
+  const newPaid=s.paid+newpay;
+  // restore old stock then deduct new
+  let products=[...D.products];
+  oldItems.forEach(oi=>{const p=products.find(x=>x.id===oi.pid||x.id===oi.productId);if(p)p.stock+=oi.qty;});
+  editSaleItems.forEach(ni=>{const p=products.find(x=>x.id===ni.pid);if(p)p.stock-=ni.qty;});
+  D.products=products;
+  const cid=Number(document.getElementById('es-client').value);
+  const client=D.clients.find(x=>x.id===cid);
+  D.sales=D.sales.map(x=>x.id===id?{...x,cId:cid,cName:client?.n||x.cName,date:document.getElementById('es-date').value,notes:document.getElementById('es-notes').value,items:JSON.parse(JSON.stringify(editSaleItems)),ht,tva,tvaAmt,total,paid:newPaid,rem:newRem}:x);
+  if(newpay>0){D.clients=D.clients.map(cl=>cl.id===cid?{...cl,bal:cl.bal-newpay}:cl);}
+  save();closeModal();nav('sales');
+}
+let editPurchItems=[];
+function editPurch(id){
+  const p=D.purchases.find(x=>x.id===id);if(!p)return;
+  editPurchItems=JSON.parse(JSON.stringify(p.items||[]));
+  const sups=D.suppliers.map(s=>`<option value="${s.id}" ${s.id===p.sId?'selected':''}>${esc(s.n)}</option>`).join('');
+  const prods=D.products.map(x=>`<option value="${x.id}">${esc(x.n)}</option>`).join('');
+  openModal('✏️ Modifier Achat #'+id,`
+    <div class="form-row">
+      <div class="fld"><label>Fournisseur</label><select class="inp" id="ep-sup">${sups}</select></div>
+      <div class="fld"><label>Date</label><input class="inp" type="date" id="ep-date" value="${p.date}"/></div>
+    </div>
+    <div class="section-title">📦 Articles</div>
+    <div class="items-area">
+      <div class="items-add-row">
+        <select class="inp" id="ep-prod" style="flex:2">${prods}</select>
+        <input class="inp" type="number" id="ep-qty" placeholder="Qté" min="1" style="flex:0 0 60px"/>
+        <input class="inp" type="number" id="ep-cost" placeholder="Coût" style="flex:1"/>
+        <button class="btn btn-success btn-sm" onclick="addEditPurchItem()">+</button>
+      </div>
+      <div id="edit-purch-items"></div>
+      <div class="items-total-row" id="edit-purch-total"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>TVA %</label><input class="inp" type="number" id="ep-tva" value="${p.tva||0}" oninput="refreshEditPurchItems()"/></div>
+      <div class="fld"><label>💵 Comptant</label><input class="inp" type="number" id="ep-comptant" value="${p.comptant||0}"/></div>
+    </div>
+    <div class="section-title">💳 Paiement actuel</div>
+    <div class="pay-summary" style="margin-bottom:12px">
+      <div class="pay-summary-row"><span>Payé</span><span class="color-green">${fmt(p.paid)}</span></div>
+      <div class="pay-summary-row total"><span>Reste actuel</span><span class="${p.rem>0?'color-red':'color-green'}">${fmt(p.rem)}</span></div>
+    </div>
+    <div class="fld"><label>➕ Nouveau paiement effectué</label><input class="inp" type="number" id="ep-newpay" value="0"/></div>
+    <div class="fld"><label>Notes</label><input class="inp" id="ep-notes" value="${p.notes||''}"/></div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEditPurch(${id})">💾 Enregistrer</button>
+    </div>`,true);
+  refreshEditPurchItems();
+}
+function addEditPurchItem(){
+  const pid=Number(document.getElementById('ep-prod').value);
+  const prod=D.products.find(p=>p.id===pid);if(!prod)return;
+  const qty=Number(document.getElementById('ep-qty').value);if(!qty)return;
+  const cost=Number(document.getElementById('ep-cost').value)||prod.cost;
+  editPurchItems.push({pid,n:prod.n,qty,cost,total:qty*cost});
+  document.getElementById('ep-qty').value='';
+  document.getElementById('ep-cost').value='';
+  refreshEditPurchItems();
+}
+function removeEditPurchItem(i){editPurchItems.splice(i,1);refreshEditPurchItems();}
+function refreshEditPurchItems(){
+  const tva=Number(document.getElementById('ep-tva')?.value)||0;
+  const ht=editPurchItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const ttc=ht+tvaAmt;
+  const list=document.getElementById('edit-purch-items');
+  const tot=document.getElementById('edit-purch-total');
+  if(list)list.innerHTML=editPurchItems.map((item,i)=>`
+    <div class="item-row">
+      <div><div class="iname">${esc(item.n)}</div><div class="idetail">${item.qty} × ${fmt(item.cost||item.price)}</div></div>
+      <span class="itotal">${fmt(item.total)}</span>
+      <button class="icon-btn del" onclick="removeEditPurchItem(${i})">✕</button>
+    </div>`).join('')||`<div style="text-align:center;color:var(--muted);padding:8px;font-size:13px">Aucun article</div>`;
+  if(tot)tot.innerHTML=`HT: <strong>${fmt(ht)}</strong> | TVA: <strong>${fmt(tvaAmt)}</strong> | <strong>TTC: ${fmt(ttc)}</strong>`;
+}
+function saveEditPurch(id){
+  const p=D.purchases.find(x=>x.id===id);if(!p)return;
+  const oldItems=p.items||[];
+  const newpay=Number(document.getElementById('ep-newpay').value)||0;
+  const tva=Number(document.getElementById('ep-tva').value)||0;
+  const ht=editPurchItems.reduce((s,i)=>s+i.total,0);
+  const tvaAmt=ht*tva/100;
+  const total=ht+tvaAmt;
+  const newRem=Math.max(0,total-p.paid-newpay);
+  let products=[...D.products];
+  // restore old stock
+  oldItems.forEach(oi=>{const pr=products.find(x=>x.id===oi.pid||x.id===oi.productId);if(pr)pr.stock-=oi.qty;});
+  // apply new stock
+  editPurchItems.forEach(ni=>{const pr=products.find(x=>x.id===ni.pid);if(pr){pr.stock+=ni.qty;pr.cost=ni.cost||ni.price||pr.cost;}});
+  D.products=products;
+  const sid=Number(document.getElementById('ep-sup').value);
+  const sup=D.suppliers.find(x=>x.id===sid);
+  D.purchases=D.purchases.map(x=>x.id===id?{...x,sId:sid,sName:sup?.n||x.sName,date:document.getElementById('ep-date').value,notes:document.getElementById('ep-notes').value,items:JSON.parse(JSON.stringify(editPurchItems)),ht,tva,tvaAmt,total,paid:p.paid+newpay,rem:newRem}:x);
+  if(newpay>0){D.suppliers=D.suppliers.map(s=>s.id===sid?{...s,bal:s.bal-newpay}:s);}
+  save();closeModal();nav('purchases');
 }
 
 // ============ PAY MODAL ============
@@ -969,16 +1236,16 @@ function confirmPayment(total){
 // ============ STOCK ============
 function renderStock(){
   const rows=D.products.map(p=>{
-    const st=p.stock===0?'out':p.stock<=p.minStock?'low':'ok';
-    return `<tr class="${st==='out'?'row-danger':st==='low'?'row-warn':''}">
+    const st=p.stock<0?'negative':p.stock===0?'out':p.stock<=p.minStock?'low':'ok';
+    return `<tr class="${st==='negative'||st==='out'?'row-danger':st==='low'?'row-warn':''}">
       <td><strong>${esc(p.n)}</strong></td>
       <td>${D.productCats.find(c=>c.id===p.catId)?.n||'-'}</td>
-      <td class="fw700 ${st==='out'?'color-red':st==='low'?'color-orange':'color-green'}">${p.stock}</td>
+      <td class="fw700 ${st==='negative'?'color-red':st==='out'?'color-red':st==='low'?'color-orange':'color-green'}">${p.stock}</td>
       <td>${p.minStock}</td>
       <td>${p.unit}</td>
       <td>${fmt(p.price)}</td>
-      <td>${fmt(p.stock*p.cost)}</td>
-      <td><span class="badge ${st==='out'?'badge-red':st==='low'?'badge-orange':'badge-green'}">${st==='out'?t.outStock:st==='low'?t.lowStock:t.active}</span></td>
+      <td>${fmt(Math.max(0,p.stock)*p.cost)}</td>
+      <td><span class="badge ${st==='negative'?'badge-red':st==='out'?'badge-red':st==='low'?'badge-orange':'badge-green'}">${st==='negative'?'⚠️ Négatif':st==='out'?t.outStock:st==='low'?t.lowStock:t.active}</span></td>
     </tr>`;}).join('')||`<tr class="no-data-row"><td colspan="8">${t.noData}</td></tr>`;
   const totalVal=D.products.reduce((s,p)=>s+p.stock*p.cost,0);
   return `<div class="page">
@@ -1051,6 +1318,7 @@ function renderClients(){
       <td>${D.clientCats.find(x=>x.id===c.catId)?.n||'-'}</td>
       <td>${esc(c.phone)}</td>
       <td class="${c.bal>0?'color-red':c.bal<0?'color-green':''} fw700">${fmt(c.bal)}</td>
+      <td>${c.plafond>0?'<span class="badge badge-orange">'+fmt(c.plafond)+'</span>':'<span class="badge badge-green">∞</span>'}</td>
       <td>
         <button class="icon-btn" onclick="moveClient(${c.id},'up')" title="${t.moveUp}">⬆️</button>
         <button class="icon-btn" onclick="moveClient(${c.id},'dn')" title="${t.moveDown}">⬇️</button>
@@ -1065,7 +1333,7 @@ function renderClients(){
     <button class="btn btn-primary" onclick="openClientModal()">+ ${t.addClient}</button></div>
   <div class="search-bar"><span class="si">🔍</span><input placeholder="${t.search}" oninput="window._csearch=this.value;document.getElementById('content').innerHTML=renderClients()" value="${esc(search)}"/></div>
   <div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>${t.name}</th><th>${t.cat}</th><th>${t.phone}</th><th>${t.balance}</th><th>Ordre</th><th>Actions</th></tr></thead>
+    <thead><tr><th>${t.name}</th><th>${t.cat}</th><th>${t.phone}</th><th>${t.balance}</th><th>Plafond</th><th>Ordre</th><th>Actions</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -1089,6 +1357,7 @@ function openClientModal(id){
       <div class="fld"><label>${t.balance}</label><input class="inp" type="number" id="c-bal" value="${c.bal||0}"/></div>
     </div>
     <div class="fld"><label>${t.address}</label><input class="inp" id="c-addr" value="${esc(c.addr||'')}"/></div>
+    <div class="fld"><label>🔒 Plafond crédit (0 = illimité)</label><input class="inp" type="number" id="c-plafond" value="${c.plafond||0}" min="0"/></div>
     <div class="form-actions">
       <button class="btn" onclick="closeModal()">${t.cancel}</button>
       <button class="btn btn-primary" onclick="saveClient(${id||0})">${t.save}</button>
@@ -1097,7 +1366,7 @@ function openClientModal(id){
 function openClientEdit(id){openClientModal(id)}
 function saveClient(id){
   const n=document.getElementById('c-name').value.trim();if(!n)return;
-  const obj={n,catId:Number(document.getElementById('c-cat').value),phone:document.getElementById('c-phone').value,addr:document.getElementById('c-addr').value,bal:Number(document.getElementById('c-bal').value)};
+  const obj={n,catId:Number(document.getElementById('c-cat').value),phone:document.getElementById('c-phone').value,addr:document.getElementById('c-addr').value,bal:Number(document.getElementById('c-bal').value),plafond:Number(document.getElementById('c-plafond').value)||0};
   if(id){D.clients=D.clients.map(c=>c.id===id?{...c,...obj}:c)}
   else{const nid=D.nid.c++;D.clients.push({id:nid,...obj,ord:D.clients.length})}
   save();closeModal();nav('clients');
@@ -1221,7 +1490,7 @@ function renderProducts(){
       <td><strong>${esc(p.n)}</strong></td>
       <td>${D.productCats.find(c=>c.id===p.catId)?.n||'-'}</td>
       <td>${fmt(p.price)}</td>
-      <td class="fw700 ${p.stock===0?'color-red':p.stock<=p.minStock?'color-orange':'color-green'}">${p.stock}</td>
+      <td class="fw700 ${p.stock<0?'color-red':p.stock===0?'color-red':p.stock<=p.minStock?'color-orange':'color-green'}">${p.stock}</td>
       <td>${p.unit}</td>
       <td>
         <button class="icon-btn" onclick="openProdEdit(${p.id})">✏️</button>
@@ -1268,7 +1537,12 @@ function saveProd(id){
   else{const nid=D.nid.p++;D.products.push({id:nid,...obj})}
   save();closeModal();nav('inventory');
 }
-function delProd(id){confirm2(t.confirmDel,()=>{D.products=D.products.filter(p=>p.id!==id);save();nav('inventory')})}
+function delProd(id){
+  const usedInSale=D.sales.some(s=>(s.items||[]).some(i=>i.pid===id||i.productId===id));
+  const usedInPurch=D.purchases.some(p=>(p.items||[]).some(i=>i.pid===id||i.productId===id));
+  if(usedInSale||usedInPurch){alert('⚠️ Ce produit est utilisé dans des ventes/achats et ne peut pas être supprimé.');return;}
+  confirm2(t.confirmDel,()=>{D.products=D.products.filter(p=>p.id!==id);save();nav('inventory')});
+}
 
 // ============ INVENTORY ============
 function renderInventory(){
@@ -1282,42 +1556,353 @@ function renderInventory(){
 }
 
 // ============ REPORTS ============
-let repPeriod='all';
-function renderReports(){
+let repPeriod='custom';
+let repTab='general';
+let repDateFrom=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().split('T')[0];
+let repDateTo=today();
+let repClientId='';
+let repCalMonth=new Date().getMonth();
+let repCalYear=new Date().getFullYear();
+function filterByPeriod(items){
   const now=new Date();
-  const filter=items=>items.filter(i=>{
-    if(repPeriod==='all')return true;
+  return items.filter(i=>{
     const d=new Date(i.date);
     if(repPeriod==='month')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     if(repPeriod==='today')return i.date===today();
+    if(repPeriod==='custom'){
+      if(repDateFrom&&i.date<repDateFrom)return false;
+      if(repDateTo&&i.date>repDateTo)return false;
+      return true;
+    }
     return true;
   });
-  const fs=filter(D.sales),fp=filter(D.purchases),fe=filter(D.expenses);
+}
+function buildCalendar(){
+  const year=repCalYear,month=repCalMonth;
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const monthNames=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  // sales by date
+  const salesByDate={};
+  D.sales.forEach(s=>{if(!salesByDate[s.date])salesByDate[s.date]=0;salesByDate[s.date]+=s.total;});
+  let days='';
+  const dayLabels=['Di','Lu','Ma','Me','Je','Ve','Sa'];
+  const headers=dayLabels.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:4px">${d}</div>`).join('');
+  for(let i=0;i<firstDay;i++)days+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hasSale=salesByDate[dateStr];
+    const isFrom=dateStr===repDateFrom,isTo=dateStr===repDateTo;
+    const inRange=repDateFrom&&repDateTo&&dateStr>=repDateFrom&&dateStr<=repDateTo;
+    const isToday=dateStr===today();
+    let bg=inRange?'#ede9fe':'transparent';
+    let color=hasSale?'#5b21b6':'var(--tx)';
+    let border=isFrom||isTo?'2px solid #5b21b6':isToday?'1.5px solid #a78bfa':'1px solid transparent';
+    let fw=isFrom||isTo||isToday?'700':'400';
+    days+=`<div onclick="calDayClick('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;background:${bg};color:${color};font-weight:${fw};border:${border};font-size:13px;position:relative">
+      ${d}${hasSale?`<div style="width:5px;height:5px;background:#5b21b6;border-radius:50%;margin:1px auto 0"></div>`:'<div style="height:6px"></div>'}
+    </div>`;
+  }
+  return `<div style="background:#fff;border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button class="btn btn-sm" onclick="repCalMonth--;if(repCalMonth<0){repCalMonth=11;repCalYear--;}nav('reports')">‹</button>
+      <strong style="font-size:15px">${monthNames[month]} ${year}</strong>
+      <button class="btn btn-sm" onclick="repCalMonth++;if(repCalMonth>11){repCalMonth=0;repCalYear++;}nav('reports')">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+      ${headers}${days}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;font-size:12px;align-items:center;flex-wrap:wrap">
+      <span style="width:8px;height:8px;background:#5b21b6;border-radius:50%;display:inline-block"></span> Vente ce jour
+      <span style="background:#ede9fe;padding:2px 8px;border-radius:6px;color:#5b21b6">Période sélectionnée</span>
+      <button class="btn btn-sm" onclick="repDateFrom='';repDateTo='';repPeriod='all';nav('reports')">Effacer</button>
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:var(--muted)">
+      📅 <strong style="color:var(--p)">${repDateFrom||'...'}</strong> → <strong style="color:var(--p)">${repDateTo||'...'}</strong>
+      ${repDateFrom&&repDateTo?`<span style="margin-left:8px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:6px">✅ Actif</span>`:'<span style="margin-left:8px;color:#f59e0b">Appuyez sur un jour pour définir la période</span>'}
+    </div>
+  </div>`;
+}
+function calDayClick(dateStr){
+  if(!repDateFrom||repDateTo){repDateFrom=dateStr;repDateTo='';repPeriod='custom';}
+  else{
+    if(dateStr<repDateFrom){repDateTo=repDateFrom;repDateFrom=dateStr;}
+    else{repDateTo=dateStr;}
+    repPeriod='custom';
+  }
+  nav('reports');
+}
+function renderReports(){
+  const fs=filterByPeriod(D.sales);
+  const fp=filterByPeriod(D.purchases);
+  const fe=filterByPeriod(D.expenses);
   const ts=fs.reduce((s,v)=>s+v.total,0);
   const tp=fp.reduce((s,v)=>s+v.total,0);
   const te=fe.reduce((s,v)=>s+v.amt,0);
-  const prof=ts-tp-te;
-  const sRows=fs.slice(-10).reverse().map(s=>`
-    <tr><td>#${s.id}</td><td>${esc(s.cName)}</td><td>${s.date}</td><td class="fw700">${fmt(s.total)}</td><td class="color-green">${fmt(s.paid)}</td><td class="${s.rem>0?'color-red':''}">${fmt(s.rem)}</td></tr>
-  `).join('')||`<tr class="no-data-row"><td colspan="6">${t.noData}</td></tr>`;
+  const prof=fs.reduce((s,v)=>s+(v.items||[]).reduce((a,i)=>{const p=D.products.find(x=>x.id===i.pid||x.id===i.productId);return a+i.qty*(i.price-(p?p.cost:0));},0),0)-te;
+
+  const cal=buildCalendar();
+
+  const periodBtns=`<div class="tabs" style="margin-bottom:8px">
+    <button class="tab-btn ${repPeriod==='today'?'active':''}" onclick="repPeriod='today';repDateFrom=today();repDateTo=today();nav('reports')">Aujourd'hui</button>
+    <button class="tab-btn ${repPeriod==='month'?'active':''}" onclick="repPeriod='month';nav('reports')">Ce mois</button>
+    <button class="tab-btn ${repPeriod==='all'?'active':''}" onclick="repPeriod='all';repDateFrom='';repDateTo='';nav('reports')">Tout</button>
+    <button class="tab-btn ${repPeriod==='custom'&&repDateFrom?'active':''}" onclick="repPeriod='custom';nav('reports')">📅 Calendrier</button>
+  </div>`;
+
+  const mainTabs=`<div class="tabs">
+    <button class="tab-btn ${repTab==='general'?'active':''}" onclick="repTab='general';nav('reports')">📊 Général</button>
+    <button class="tab-btn ${repTab==='credits'?'active':''}" onclick="repTab='credits';nav('reports')">💳 Crédits</button>
+    <button class="tab-btn ${repTab==='clients'?'active':''}" onclick="repTab='clients';nav('reports')">👥 Clients</button>
+    <button class="tab-btn ${repTab==='products'?'active':''}" onclick="repTab='products';nav('reports')">📦 Produits</button>
+  </div>`;
+
+  let content='';
+
+  // ---- GENERAL TAB ----
+  if(repTab==='general'){
+    const tPaid=fs.reduce((s,v)=>s+v.paid,0);
+    const tRem=fs.reduce((s,v)=>s+v.rem,0);
+    // sales by day chart data
+    const byDay={};
+    fs.forEach(s=>{byDay[s.date]=(byDay[s.date]||0)+s.total;});
+    const dayKeys=Object.keys(byDay).sort();
+    const dayBars=dayKeys.length>0?dayKeys.map(dk=>{
+      const maxV=Math.max(...Object.values(byDay));
+      const pct=maxV>0?Math.round(byDay[dk]/maxV*100):0;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:28px">
+        <div style="font-size:9px;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg)">${dk.slice(5)}</div>
+        <div style="width:100%;background:#ede9fe;border-radius:4px 4px 0 0;height:${Math.max(4,pct)}px;min-height:4px;background:#7c3aed"></div>
+        <div style="font-size:9px;color:var(--muted)">${fmt(byDay[dk]).split('.')[0]}</div>
+      </div>`;
+    }).join(''):'<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Aucune vente sur cette période</div>';
+
+    const sRows=fs.slice().reverse().map(s=>`
+      <tr>
+        <td><strong>#${s.id}</strong></td>
+        <td>${esc(s.cName)}</td>
+        <td>${s.date}</td>
+        <td>${s.items?s.items.length:'-'} art.</td>
+        <td class="fw700 color-purple">${fmt(s.total)}</td>
+        <td>${s.tva>0?s.tva+'%':'-'}</td>
+        <td class="color-green">${fmt(s.paid)}</td>
+        <td class="${s.rem>0?'color-red fw700':''}">${fmt(s.rem)}</td>
+        <td><span class="badge ${s.rem<=0?'badge-green':s.paid>0?'badge-orange':'badge-red'}">${s.rem<=0?'✅':s.paid>0?'Partiel':'Impayé'}</span></td>
+      </tr>`).join('')||`<tr class="no-data-row"><td colspan="9">Aucune vente</td></tr>`;
+
+    const pRows=fp.slice().reverse().map(p=>`
+      <tr>
+        <td><strong>#${p.id}</strong></td>
+        <td>${esc(p.sName)}</td>
+        <td>${p.date}</td>
+        <td class="fw700">${fmt(p.total)}</td>
+        <td class="color-green">${fmt(p.paid)}</td>
+        <td class="${p.rem>0?'color-red':''}">${fmt(p.rem)}</td>
+      </tr>`).join('')||`<tr class="no-data-row"><td colspan="6">Aucun achat</td></tr>`;
+
+    content=`
+    <div class="rep-grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="rep-card" style="background:#d1fae5;color:#064e3b"><div class="rl">💰 CA Ventes</div><div class="rv">${fmt(ts)}</div><div class="rc">${fs.length} factures</div></div>
+      <div class="rep-card" style="background:#dbeafe;color:#1e3a8a"><div class="rl">📦 Achats</div><div class="rv">${fmt(tp)}</div><div class="rc">${fp.length} op.</div></div>
+      <div class="rep-card" style="background:#fef3c7;color:#78350f"><div class="rl">💸 Dépenses</div><div class="rv">${fmt(te)}</div><div class="rc">${fe.length} op.</div></div>
+      <div class="rep-card" style="background:${prof>=0?'#d1fae5':'#fee2e2'};color:${prof>=0?'#064e3b':'#7f1d1d'}"><div class="rl">📈 Bénéfice net</div><div class="rv">${fmt(prof)}</div></div>
+      <div class="rep-card" style="background:#ede9fe;color:#4c1d95"><div class="rl">✅ Encaissé</div><div class="rv">${fmt(tPaid)}</div></div>
+      <div class="rep-card" style="background:#fee2e2;color:#7f1d1d"><div class="rl">⏳ Crédit total</div><div class="rv">${fmt(tRem)}</div></div>
+    </div>
+    ${dayKeys.length>0?`<div class="section-title">📊 Ventes par jour</div>
+    <div style="background:#fff;border-radius:12px;padding:12px;box-shadow:var(--shadow);margin-bottom:14px;overflow-x:auto">
+      <div style="display:flex;align-items:flex-end;gap:4px;min-height:80px;min-width:${Math.max(300,dayKeys.length*36)}px">${dayBars}</div>
+    </div>`:''}
+    <div class="section-title">📋 Détail ventes (${fs.length})</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Client</th><th>Date</th><th>Art.</th><th>Total</th><th>TVA</th><th>Payé</th><th>Reste</th><th>Statut</th></tr></thead>
+      <tbody>${sRows}</tbody>
+      <tfoot><tr style="background:#f8fafc;font-weight:700">
+        <td colspan="4">Total (${fs.length})</td><td>${fmt(ts)}</td><td></td><td class="color-green">${fmt(tPaid)}</td><td class="color-red">${fmt(tRem)}</td><td></td>
+      </tr></tfoot>
+    </table></div>
+    <div class="section-title" style="margin-top:16px">📦 Achats (${fp.length})</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Fournisseur</th><th>Date</th><th>Total</th><th>Payé</th><th>Reste</th></tr></thead>
+      <tbody>${pRows}</tbody>
+    </table></div>`;
+  }
+
+  // ---- CREDITS TAB ----
+  else if(repTab==='credits'){
+    const totalCred=D.clients.reduce((s,cl)=>s+(cl.bal>0?cl.bal:0),0);
+    const totalNeg=D.clients.reduce((s,cl)=>s+(cl.bal<0?cl.bal:0),0);
+    const credRows=[...D.clients].sort((a,b)=>b.bal-a.bal).map(cl=>{
+      const clSales=D.sales.filter(s=>s.cId===cl.id);
+      const lastSale=clSales.slice(-1)[0];
+      const totalCA=clSales.reduce((s,v)=>s+v.total,0);
+      const nbSales=clSales.length;
+      return `<tr>
+        <td><strong>${esc(cl.n)}</strong><div style="font-size:11px;color:var(--muted)">${cl.phone||''}</div></td>
+        <td><span class="badge badge-purple">${D.clientCats.find(x=>x.id===cl.catId)?.n||'-'}</span></td>
+        <td class="${cl.bal>0?'color-red fw700':cl.bal<0?'color-green fw700':'color-muted'}">${fmt(cl.bal)}</td>
+        <td>${cl.plafond>0?`<span class="badge badge-orange">${fmt(cl.plafond)}</span>`:'<span class="badge badge-green">∞</span>'}</td>
+        <td>${cl.plafond>0&&cl.bal>0?`<div style="background:#fee2e2;border-radius:6px;height:8px;width:100%;overflow:hidden"><div style="background:#dc2626;height:100%;width:${Math.min(100,Math.round(cl.bal/cl.plafond*100))}%"></div></div><div style="font-size:11px;text-align:right">${Math.min(100,Math.round(cl.bal/cl.plafond*100))}%</div>`:'-'}</td>
+        <td class="color-purple">${fmt(totalCA)}</td>
+        <td>${nbSales}</td>
+        <td>${lastSale?lastSale.date:'-'}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="repTab='clients';repClientId='${cl.id}';nav('reports')">📊</button></td>
+      </tr>`;
+    }).join('')||`<tr class="no-data-row"><td colspan="9">Aucun client</td></tr>`;
+    content=`
+    <div class="rep-grid" style="margin-bottom:14px">
+      <div class="rep-card" style="background:#fee2e2;color:#7f1d1d"><div class="rl">💳 Total crédits</div><div class="rv">${fmt(totalCred)}</div><div class="rc">${D.clients.filter(c=>c.bal>0).length} clients</div></div>
+      <div class="rep-card" style="background:#d1fae5;color:#064e3b"><div class="rl">✅ Soldes positifs</div><div class="rv">${fmt(Math.abs(totalNeg))}</div><div class="rc">${D.clients.filter(c=>c.bal<0).length} clients</div></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Client</th><th>Catégorie</th><th>Solde</th><th>Plafond</th><th>Utilisation</th><th>CA total</th><th>Ventes</th><th>Dernier</th><th></th></tr></thead>
+      <tbody>${credRows}</tbody>
+      <tfoot><tr style="background:#fef2f2;font-weight:700">
+        <td colspan="2">Total crédits</td><td class="color-red">${fmt(totalCred)}</td><td colspan="6"></td>
+      </tr></tfoot>
+    </table></div>`;
+  }
+
+  // ---- CLIENTS TAB ----
+  else if(repTab==='clients'){
+    const clientOpts=D.clients.map(cl=>`<option value="${cl.id}" ${String(cl.id)===String(repClientId)?'selected':''}>${esc(cl.n)}</option>`).join('');
+    let clientDetail='<div class="empty-state"><div class="ei">👥</div>Sélectionnez un client</div>';
+    if(repClientId){
+      const cl=D.clients.find(x=>String(x.id)===String(repClientId));
+      if(cl){
+        const clSales=fs.filter(s=>String(s.cId)===String(cl.id));
+        const allClSales=D.sales.filter(s=>String(s.cId)===String(cl.id));
+        const clTotal=clSales.reduce((s,v)=>s+v.total,0);
+        const clPaid=clSales.reduce((s,v)=>s+v.paid,0);
+        const clRem=clSales.reduce((s,v)=>s+v.rem,0);
+        const clProfit=clSales.reduce((s,v)=>s+(v.items||[]).reduce((a,i)=>{const p=D.products.find(x=>x.id===i.pid||x.id===i.productId);return a+i.qty*(i.price-(p?p.cost:0));},0),0);
+        const clTva=clSales.reduce((s,v)=>s+(v.tvaAmt||0),0);
+        const clHT=clSales.reduce((s,v)=>s+(v.ht||v.total),0);
+        const avgBasket=clSales.length>0?clTotal/clSales.length:0;
+        // Products map
+        const prodMap={};
+        clSales.forEach(s=>(s.items||[]).forEach(i=>{
+          const key=i.pid||i.productId;
+          if(!prodMap[key])prodMap[key]={n:i.n,qty:0,ca:0,profit:0,lastDate:'',nbVentes:0};
+          prodMap[key].qty+=i.qty;
+          prodMap[key].ca+=i.total;
+          const p=D.products.find(x=>x.id===key);
+          prodMap[key].profit+=i.qty*(i.price-(p?p.cost:0));
+          if(s.date>prodMap[key].lastDate)prodMap[key].lastDate=s.date;
+          prodMap[key].nbVentes++;
+        }));
+        const prodRows=Object.values(prodMap).sort((a,b)=>b.ca-a.ca).map((p,i)=>`
+          <tr>
+            <td>${i+1}</td>
+            <td><strong>${esc(p.n)}</strong></td>
+            <td>${p.qty}</td>
+            <td class="color-purple fw700">${fmt(p.ca)}</td>
+            <td class="${p.profit>=0?'color-green':'color-red'} fw700">${fmt(p.profit)}</td>
+            <td>${p.nbVentes}</td>
+            <td>${p.lastDate}</td>
+          </tr>`).join('')||`<tr class="no-data-row"><td colspan="7">Aucun produit</td></tr>`;
+        const saleRows=clSales.slice().reverse().map(s=>`
+          <tr>
+            <td><strong>#${s.id}</strong></td>
+            <td>${s.date}</td>
+            <td>${(s.items||[]).map(i=>esc(i.n)+'×'+i.qty).join(', ')}</td>
+            <td>${fmt(s.ht||s.total)}</td>
+            <td>${s.tva>0?s.tva+'%':'-'}</td>
+            <td class="fw700 color-purple">${fmt(s.total)}</td>
+            <td class="color-green">${fmt(s.paid)}</td>
+            <td class="${s.rem>0?'color-red fw700':''}">${fmt(s.rem)}</td>
+            <td><span class="badge ${s.rem<=0?'badge-green':s.paid>0?'badge-orange':'badge-red'}">${s.rem<=0?'✅':s.paid>0?'Partiel':'Impayé'}</span></td>
+          </tr>`).join('')||`<tr class="no-data-row"><td colspan="9">Aucune vente</td></tr>`;
+        clientDetail=`
+        <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:16px;color:#fff;margin-bottom:14px">
+          <div style="font-size:18px;font-weight:800">${esc(cl.n)}</div>
+          <div style="font-size:13px;opacity:.85">${cl.phone||''} ${cl.addr?'• '+cl.addr:''}</div>
+          <div style="font-size:12px;opacity:.7;margin-top:4px">Période: ${repDateFrom||'Tout'} → ${repDateTo||'Auj.'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          <div class="rep-card" style="background:#d1fae5;color:#064e3b"><div class="rl">💰 CA période</div><div class="rv">${fmt(clTotal)}</div><div class="rc">${clSales.length} ventes</div></div>
+          <div class="rep-card" style="background:#ede9fe;color:#4c1d95"><div class="rl">📊 Panier moyen</div><div class="rv">${fmt(avgBasket)}</div></div>
+          <div class="rep-card" style="background:#dbeafe;color:#1e3a8a"><div class="rl">✅ Encaissé</div><div class="rv">${fmt(clPaid)}</div></div>
+          <div class="rep-card" style="background:#fee2e2;color:#7f1d1d"><div class="rl">⏳ Crédit actuel</div><div class="rv">${fmt(cl.bal)}</div></div>
+          <div class="rep-card" style="background:${clProfit>=0?'#d1fae5':'#fee2e2'};color:${clProfit>=0?'#064e3b':'#7f1d1d'}"><div class="rl">📈 Bénéfice</div><div class="rv">${fmt(clProfit)}</div></div>
+          <div class="rep-card" style="background:#fef3c7;color:#78350f"><div class="rl">🏷 TVA collectée</div><div class="rv">${fmt(clTva)}</div></div>
+        </div>
+        <div class="section-title">📦 Produits achetés — classement par CA</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>#</th><th>Produit</th><th>Qté totale</th><th>CA</th><th>Bénéfice</th><th>Nb ventes</th><th>Dernier achat</th></tr></thead>
+          <tbody>${prodRows}</tbody>
+        </table></div>
+        <div class="section-title" style="margin-top:16px">🧾 Historique détaillé (${clSales.length} ventes)</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>#</th><th>Date</th><th>Articles</th><th>HT</th><th>TVA</th><th>TTC</th><th>Payé</th><th>Reste</th><th>Statut</th></tr></thead>
+          <tbody>${saleRows}</tbody>
+          <tfoot><tr style="background:#f8fafc;font-weight:700">
+            <td colspan="3">Total</td><td>${fmt(clHT)}</td><td>${fmt(clTva)}</td><td class="color-purple">${fmt(clTotal)}</td><td class="color-green">${fmt(clPaid)}</td><td class="color-red">${fmt(clRem)}</td><td></td>
+          </tr></tfoot>
+        </table></div>`;
+      }
+    }
+    content=`
+    <div class="fld">
+      <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">SÉLECTIONNER UN CLIENT</label>
+      <select class="inp" onchange="repClientId=this.value;nav('reports')">
+        <option value="">-- Choisir un client --</option>
+        ${clientOpts}
+      </select>
+    </div>
+    ${clientDetail}`;
+  }
+
+  // ---- PRODUCTS TAB ----
+  else if(repTab==='products'){
+    const allProdMap={};
+    fs.forEach(s=>(s.items||[]).forEach(i=>{
+      const key=i.pid||i.productId;
+      const prod=D.products.find(x=>x.id===key);
+      if(!allProdMap[key])allProdMap[key]={n:i.n,unit:prod?.unit||'',qty:0,ca:0,cost:0,profit:0,nbFact:0,clients:new Set()};
+      allProdMap[key].qty+=i.qty;
+      allProdMap[key].ca+=i.total;
+      allProdMap[key].cost+=(prod?prod.cost:0)*i.qty;
+      allProdMap[key].profit+=i.qty*(i.price-(prod?prod.cost:0));
+      allProdMap[key].nbFact++;
+      if(s.cId)allProdMap[key].clients.add(s.cId);
+    }));
+    const prodRows=Object.values(allProdMap).sort((a,b)=>b.ca-a.ca).map((p,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td><strong>${esc(p.n)}</strong></td>
+        <td>${p.unit}</td>
+        <td class="fw700">${p.qty}</td>
+        <td class="color-purple fw700">${fmt(p.ca)}</td>
+        <td>${fmt(p.cost)}</td>
+        <td class="${p.profit>=0?'color-green':'color-red'} fw700">${fmt(p.profit)}</td>
+        <td>${p.nbFact}</td>
+        <td>${p.clients.size}</td>
+        <td>${p.ca>0?Math.round(p.profit/p.ca*100)+'%':'-'}</td>
+      </tr>`).join('')||`<tr class="no-data-row"><td colspan="10">Aucune vente sur cette période</td></tr>`;
+    const totalCA=Object.values(allProdMap).reduce((s,p)=>s+p.ca,0);
+    const totalProfit=Object.values(allProdMap).reduce((s,p)=>s+p.profit,0);
+    content=`
+    <div class="rep-grid" style="margin-bottom:14px">
+      <div class="rep-card" style="background:#d1fae5;color:#064e3b"><div class="rl">📦 Produits vendus</div><div class="rv">${Object.keys(allProdMap).length}</div><div class="rc">références</div></div>
+      <div class="rep-card" style="background:${totalProfit>=0?'#d1fae5':'#fee2e2'};color:${totalProfit>=0?'#064e3b':'#7f1d1d'}"><div class="rl">📈 Bénéfice total</div><div class="rv">${fmt(totalProfit)}</div></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Produit</th><th>Unité</th><th>Qté</th><th>CA</th><th>Coût</th><th>Bénéfice</th><th>Factures</th><th>Clients</th><th>Marge</th></tr></thead>
+      <tbody>${prodRows}</tbody>
+      <tfoot><tr style="background:#f8fafc;font-weight:700">
+        <td colspan="4">Total</td><td class="color-purple">${fmt(totalCA)}</td><td></td><td class="${totalProfit>=0?'color-green':'color-red'}">${fmt(totalProfit)}</td><td colspan="3"></td>
+      </tr></tfoot>
+    </table></div>`;
+  }
+
   return `<div class="page">
-  <div class="page-hdr"><h2>${t.reports}</h2></div>
-  <div class="tabs">
-    <button class="tab-btn ${repPeriod==='all'?'active':''}" onclick="repPeriod='all';nav('reports')">${t.all}</button>
-    <button class="tab-btn ${repPeriod==='month'?'active':''}" onclick="repPeriod='month';nav('reports')">${t.month}</button>
-    <button class="tab-btn ${repPeriod==='today'?'active':''}" onclick="repPeriod='today';nav('reports')">${t.today}</button>
-  </div>
-  <div class="rep-grid">
-    <div class="rep-card" style="background:#d1fae5;color:#064e3b"><div class="rl">${t.tSales}</div><div class="rv">${fmt(ts)}</div><div class="rc">${fs.length} op.</div></div>
-    <div class="rep-card" style="background:#dbeafe;color:#1e3a8a"><div class="rl">${t.tPurch}</div><div class="rv">${fmt(tp)}</div><div class="rc">${fp.length} op.</div></div>
-    <div class="rep-card" style="background:#fef3c7;color:#78350f"><div class="rl">${t.tExp}</div><div class="rv">${fmt(te)}</div><div class="rc">${fe.length} op.</div></div>
-    <div class="rep-card" style="background:${prof>=0?'#d1fae5':'#fee2e2'};color:${prof>=0?'#064e3b':'#7f1d1d'}"><div class="rl">${t.profit}</div><div class="rv">${fmt(prof)}</div></div>
-  </div>
-  <div class="section-title">📈 ${t.salReport}</div>
-  <div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>#</th><th>${t.client}</th><th>${t.date}</th><th>${t.total}</th><th>${t.paid}</th><th>${t.remaining}</th></tr></thead>
-    <tbody>${sRows}</tbody>
-  </table></div></div>`;
+  <div class="page-hdr"><h2>📊 Rapports</h2></div>
+  ${cal}
+  ${periodBtns}
+  ${mainTabs}
+  ${content}
+  </div>`;
 }
 
 // ============ BARCODE SCANNER ============
@@ -1596,6 +2181,48 @@ function renderSettings(){
     <div id="em-status" style="margin-top:10px;font-size:13px"></div>
   </div>
 
+  <div class="section-title">⚙️ Options de vente</div>
+  <div class="stat-card" style="border-color:#f59e0b;margin-bottom:16px;display:block">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+      <div>
+        <div style="font-weight:700;font-size:14px">🚫 Bloquer vente si stock épuisé</div>
+        <div style="font-size:12px;color:var(--muted)">Empêche la vente si quantité insuffisante</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:50px;height:26px">
+        <input type="checkbox" id="opt-blockstock" ${D.blockStockSale?'checked':''} onchange="D.blockStockSale=this.checked;save()" style="opacity:0;width:0;height:0">
+        <span onclick="const cb=document.getElementById('opt-blockstock');cb.checked=!cb.checked;D.blockStockSale=cb.checked;save()" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:${D.blockStockSale?'#5b21b6':'#ccc'};border-radius:26px;transition:.3s">
+          <span style="position:absolute;content:'';height:20px;width:20px;left:${D.blockStockSale?'26':'3'}px;bottom:3px;background:white;border-radius:50%;transition:.3s;display:block"></span>
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <div class="section-title">📱 Application</div>
+  <div class="stat-card" style="border-color:#059669;margin-bottom:16px;display:block">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <div style="font-weight:700;font-size:14px">🏪 GestiPro</div>
+        <div style="font-size:12px;color:var(--muted)">Version <span id="app-ver">${window.APP_VERSION||'1.0.0'}</span> · <span id="app-build">${window.APP_BUILD||''}</span></div>
+      </div>
+      <span class="badge badge-green">PWA</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-success" id="check-update-btn" onclick="checkForUpdate()">🔄 Vérifier mise à jour</button>
+      <button class="btn" onclick="showInstallHelp()">📲 Installer sur mobile</button>
+    </div>
+    <div id="install-help" style="display:none;margin-top:12px;background:#f0fdf4;border-radius:10px;padding:12px;font-size:13px">
+      <strong>📱 Comment installer :</strong><br>
+      1. Ouvrez l'app dans <strong>Chrome Android</strong><br>
+      2. Appuyez sur <strong>⋮</strong> (3 points en haut)<br>
+      3. Appuyez <strong>"Ajouter à l'écran d'accueil"</strong><br>
+      4. Ou : <strong>"Installer l'application"</strong><br><br>
+      <strong>🍎 Sur iPhone :</strong><br>
+      1. Ouvrez dans <strong>Safari</strong><br>
+      2. Appuyez sur <strong>□↑ Partager</strong><br>
+      3. <strong>"Sur l'écran d'accueil"</strong>
+    </div>
+  </div>
+
   <div class="section-title">⚠️ Reset</div>
   <button class="btn btn-danger" onclick="resetAll()">🔄 Réinitialiser toutes les données</button>
   </div>`;
@@ -1691,6 +2318,10 @@ function checkAutoBackup(){
   if(due)sendBackupEmail(false);
 }
 function driveInfo(){alert('Pour sauvegarder sur Google Drive :\n1. Exportez le fichier JSON\n2. Allez sur drive.google.com\n3. Uploadez le fichier GestiPro_*.json\n\nPour restaurer : importez le même fichier.')}
+function showInstallHelp(){
+  const d=document.getElementById('install-help');
+  if(d)d.style.display=d.style.display==='none'?'block':'none';
+}
 function resetAll(){if(confirm('Réinitialiser ? Toutes les données seront supprimées.')){{D=defData();save();nav('dashboard')}}}
 
 // ============ INIT ============
@@ -1699,6 +2330,81 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(D.currentUser&&D.stay){showApp()}
   else{document.getElementById('login-screen').style.display='flex'}
 });
+</script>
+<script>
+// ============ PWA SERVICE WORKER ============
+if('serviceWorker' in navigator){
+  let swReg;
+  navigator.serviceWorker.register('/Gestipro/sw.js').then(reg=>{
+    swReg=reg;
+    console.log('[PWA] SW registered');
+    // Check for updates every time app opens
+    reg.update();
+    // Listen for new SW waiting
+    reg.addEventListener('updatefound',()=>{
+      const newSW=reg.installing;
+      newSW.addEventListener('statechange',()=>{
+        if(newSW.state==='installed'&&navigator.serviceWorker.controller){
+          showUpdateBanner(newSW);
+        }
+      });
+    });
+  }).catch(err=>console.warn('[PWA] SW error:',err));
+
+  // Reload after SW takes control
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!refreshing){refreshing=true;window.location.reload();}
+  });
+}
+
+function showUpdateBanner(newSW){
+  // Remove existing banner
+  const old=document.getElementById('update-banner');
+  if(old)old.remove();
+  const banner=document.createElement('div');
+  banner.id='update-banner';
+  banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#059669,#047857);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:14px;font-weight:600';
+  banner.innerHTML=`<span>🆕 Mise à jour disponible !</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('update-banner').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px">Plus tard</button>
+      <button onclick="applyUpdate()" style="background:#fff;color:#047857;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">⬆️ Installer</button>
+    </div>`;
+  document.body.prepend(banner);
+  window._pendingSW=newSW;
+}
+
+function applyUpdate(){
+  if(window._pendingSW){
+    window._pendingSW.postMessage('SKIP_WAITING');
+  }
+  document.getElementById('update-banner')?.remove();
+}
+
+// Manual check update button (called from settings)
+async function checkForUpdate(){
+  if(!('serviceWorker' in navigator)){
+    alert('PWA non supportée sur ce navigateur');return;
+  }
+  const reg=await navigator.serviceWorker.getRegistration();
+  if(!reg){alert('Service worker non installé');return;}
+  const btn=document.getElementById('check-update-btn');
+  if(btn){btn.textContent='⏳ Vérification...';btn.disabled=true;}
+  try{
+    await reg.update();
+    setTimeout(()=>{
+      if(btn){btn.textContent='🔄 Vérifier mise à jour';btn.disabled=false;}
+      if(!window._pendingSW)alert('✅ Vous avez la dernière version !');
+    },2000);
+  }catch(e){
+    if(btn){btn.textContent='🔄 Vérifier mise à jour';btn.disabled=false;}
+    alert('Erreur de vérification');
+  }
+}
+
+// App version info
+window.APP_VERSION='1.0.0';
+window.APP_BUILD=new Date('2025-07-01').toLocaleDateString('fr-FR');
 </script>
 </body>
 </html>

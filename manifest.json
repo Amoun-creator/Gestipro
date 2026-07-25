@@ -1,40 +1,26 @@
 {
-  "name": "GestiPro - Gestion Commerciale",
+  "name": "GestiPro",
   "short_name": "GestiPro",
-  "description": "Application de gestion commerciale complète : ventes, achats, stock, clients, fournisseurs",
-  "start_url": "./indexgestipro.html",
-  "scope": "./",
+  "description": "Gestion commerciale complète",
+  "start_url": "/Gestipro/indexgestipro.html",
+  "scope": "/Gestipro/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "background_color": "#5b21b6",
   "theme_color": "#5b21b6",
   "lang": "fr",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/Gestipro/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/Gestipro/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "categories": ["business", "finance", "productivity"],
-  "screenshots": [],
-  "shortcuts": [
-    {
-      "name": "Nouvelle vente",
-      "url": "./indexgestipro.html#sales",
-      "description": "Créer une nouvelle vente"
-    },
-    {
-      "name": "Tableau de bord",
-      "url": "./indexgestipro.html#dashboard",
-      "description": "Voir le tableau de bord"
     }
   ]
 }
